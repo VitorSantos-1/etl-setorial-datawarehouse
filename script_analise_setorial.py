@@ -6,10 +6,13 @@ from sqlalchemy import create_engine, text
 DB_URL = 'mysql+pymysql://root:@localhost:3306/analise_setorial'
 engine = create_engine(DB_URL)
 
-# Caminho do arquivo setorial (pode ser sobrescrito pela variável de ambiente)
+# Caminho do arquivo setorial.
+# Padrão: exemplo fictício em data_exemplo/. Sobrescreva com a env var ARQUIVO_SETORIAL
+# para apontar para a sua planilha real (não versionada).
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 ARQUIVO_SETORIAL = os.getenv(
     'ARQUIVO_SETORIAL',
-    r'C:\Users\Usuário\Documents\minha_pasta\Projetos\analise_setorial\setorial.xls'
+    os.path.join(BASE_DIR, 'data_exemplo', 'setorial_exemplo.xlsx')
 )
 
 # Mapa oficial: categoria mercadológica -> comprador responsável

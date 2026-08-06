@@ -6,10 +6,13 @@ from sqlalchemy import create_engine, text
 DB_URL = 'mysql+pymysql://root:@localhost:3306/analise_setorial'
 engine = create_engine(DB_URL)
 
-# Caminho do arquivo de cadastro (pode ser sobrescrito pela variável de ambiente)
+# Caminho do arquivo de cadastro.
+# Padrão: exemplo fictício em data_exemplo/. Sobrescreva com a env var ARQUIVO_CADASTRO
+# para apontar para a sua planilha real (não versionada).
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 ARQUIVO_CADASTRO = os.getenv(
     'ARQUIVO_CADASTRO',
-    r'C:\Users\Usuário\Documents\minha_pasta\Projetos\analise_setorial\cadastro.xlsx'
+    os.path.join(BASE_DIR, 'data_exemplo', 'cadastro_exemplo.xlsx')
 )
 
 # Mapa oficial: categoria mercadológica -> comprador responsável
