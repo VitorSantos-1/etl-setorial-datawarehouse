@@ -1,6 +1,6 @@
 import os
 import pandas as pd
-from sqlalchemy import create_engine, text
+from sqlalchemy import create_engine
 
 # Configuração de conexão do banco de dados
 DB_URL = 'mysql+pymysql://root:@localhost:3306/analise_setorial'
@@ -15,15 +15,6 @@ ARQUIVO_CADASTRO = os.getenv(
     os.path.join(BASE_DIR, 'data_exemplo', 'cadastro_exemplo.xlsx')
 )
 
-# Mapa oficial: categoria mercadológica -> comprador responsável
-MAPA_COMPRADORES = {
-    '003': 1, '014': 1,                                # BRUNO
-    '005': 2, '022': 2,                                # DIEGO
-    '008': 3, '011': 3, '021': 3, '012': 3, '015': 3,  # CARLA
-    '001': 4, '004': 4, '006': 4, '010': 4, '020': 4,  # FABIO
-    '002': 5, '007': 5, '009': 5, '016': 5,            # ELAINE
-}
-
 
 def obter_produtos_existentes():
     """Chaves primárias de produtos já gravados (evita duplicidade)."""
@@ -33,41 +24,6 @@ def obter_produtos_existentes():
             return set(df['pk_produto'].astype(int).tolist())
     except Exception:
         return set()  # Se a tabela não existir ainda, assume vazia
-
-
-def garantir_dimensoes_categoria(df_bruto):
-    """Garante que dim_mercadologico e dim_submercadologico contenham todas as
-    categorias/subcategorias do arquivo ANTES de inserir os produtos,
-    preservando a integridade referencial do Data Warehouse."""
-    mercadologicos = sorted(df_bruto['fk_mercadologico'].dropna().unique())
-    subs = (
-        df_bruto.loc[df_bruto['fk_submercadologico'] != '',
-                     ['fk_mercadologico', 'fk_submercadologico']]
-        .drop_duplicates()
-    )
-
-    with engine.begin() as conn:
-        # dim_mercadologico: usa o comprador do MAPA (NULL se ainda não mapeado)
-        for merc in mercadologicos:
-            conn.execute(
-                text(
-                    "INSERT INTO dim_mercadologico (pk_mercadologico, fk_comprador) "
-                    "VALUES (:merc, :comp) "
-                    "ON DUPLICATE KEY UPDATE fk_comprador = VALUES(fk_comprador)"
-                ),
-                {"merc": merc, "comp": MAPA_COMPRADORES.get(str(merc).zfill(3))},
-            )
-        # dim_submercadologico: pares (mercadológico, submercadológico) do arquivo
-        for _, row in subs.iterrows():
-            conn.execute(
-                text(
-                    "INSERT IGNORE INTO dim_submercadologico "
-                    "(fk_mercadologico, cod_submercadologico) VALUES (:merc, :sub)"
-                ),
-                {"merc": row['fk_mercadologico'], "sub": row['fk_submercadologico']},
-            )
-    print(f"-> Dimensões garantidas: {len(mercadologicos)} mercadológicos e "
-          f"{len(subs)} submercadológicos.")
 
 
 def executar_cadastro_produtos():
@@ -89,16 +45,18 @@ def executar_cadastro_produtos():
         lambda x: x.split('.')[1] if len(x.split('.')) > 1 else ''
     )
 
-    # NOVO: popula as dimensões de categoria antes dos produtos (integridade referencial)
-    garantir_dimensoes_categoria(df_bruto)
-
-    # Mapeamento para a estrutura física do banco
+    # Mapeamento para a estrutura física do banco.
+    # id_unico_submercadologico ('001_013') identifica o par categoria+subcategoria.
     df_dim_produto = pd.DataFrame({
         'pk_produto': df_bruto['Código'],
         'descricao_produto': df_bruto['Descrição'],
         'codigo_identificacao': df_bruto['Mercadológico'],
         'fk_mercadologico': df_bruto['fk_mercadologico'],
         'fk_submercadologico': df_bruto['fk_submercadologico'],
+        'id_unico_submercadologico': (
+            df_bruto['fk_mercadologico'].str.zfill(3) + '_' +
+            df_bruto['fk_submercadologico'].str.zfill(3)
+        ),
     })
 
     # Regra: evitar duplicidade
