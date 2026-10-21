@@ -106,3 +106,32 @@ data_exemplo/                -> Planilhas de exemplo (dados fictícios)
 
 José Vitor Santos Pinheiro — Análise de Dados e Inteligência Comercial (Varejo, Indústria e Distribuição).
 Contato: vytorsantt@gmail.com
+
+## 🗺️ Modelo de Dados (DER)
+
+*Star schema* do Data Warehouse de vendas setoriais (MySQL). Renderizado pelo GitHub via Mermaid. *Dados fictícios de demonstração.*
+
+```mermaid
+erDiagram
+    dim_produto ||--o{ fato_analise_setorial : "dimensiona"
+
+    dim_produto {
+        int pk_produto PK
+        varchar descricao_produto
+        varchar codigo_identificacao "ex: 001.013.003"
+        char fk_mercadologico "categoria"
+        char fk_submercadologico "subcategoria"
+        varchar id_unico_submercadologico
+    }
+    fato_analise_setorial {
+        bigint pk_fato PK
+        int fk_produto FK
+        int fk_loja "dim degenerada"
+        date data "1o dia do mes"
+        decimal quantidade
+        decimal venda
+        decimal lucro
+    }
+```
+
+**Grão:** produto × loja × mês. `fk_loja` e `data` são dimensões degeneradas; toda a hierarquia mercadológica é alcançada via `dim_produto`.
